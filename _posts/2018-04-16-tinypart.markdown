@@ -1,0 +1,140 @@
+---
+title: iOS模块化探索实践
+author: Yao Li
+author_site: http://blog.yaoli.site
+---
+
+> 背景：由于目前所在公司的iOS项目的依赖管理是比较原始的状态，但是APP功能又是越来越复杂的，这就带来的很多问题，比如开发时编译时间过长、模块间耦合严重、模块依赖混乱等。最近又听说这个项目中的部分功能可能需要独立出一个新APP，本着**Don't repeat yourself**的原则，我们试着抽离出原项目中的各个模块，并在新的APP中集成这些模块。
+
+最近算是初步完成了新APP的模块化，也算是从中总结了一些经验拿出来分享一下。
+
+# 模块划分
+做模块化还是要结合实际业务，对目前APP的功能做一个模块划分，在划分模块的时候还需要关注模块之间的层级。
+
+比如说，在我们项目中，模块被分成了3个层级：**基础层、中间层、业务层**。**基础层模块**比如像网络框架、持久化、Log、社交化分享这样的模块，这一层的模块我们可以称之为组件，具有很强的可重用性。**中间层模块**可以有登录模块、网络层、资源模块等，这一层模块有一个特点是它们依赖着基础组件但又没有很强的业务属性，同时业务层对这层模块的依赖是很强的。**业务层模块**，就是直接和产品需求对应的模块了，比如类似朋友圈、直播、Feeds流这样的业务功能了。
+
+# 代码隔离
+模块化首先要做的是代码层面上独立，任意一个基础模块都是可以独立编译的，底层模块绝对不能有对上层模块的代码依赖，还要确保未来也不会再出现这样的代码。
+
+在这里我们选择使用```CocoaPods```来确保模块间代码隔离，基础和中间层模块是一定会做成标准的私有pods组件，加入到私有pods仓库。业务层的模块，则不一定非要加到私有pods仓库中，也可以使用**submodule + local pods**的方案。这样做有两个原因：其一是业务模块的改动往往比较频繁，如果是标准的私有pods组件则需要频繁的操作```pod install```或者```pod update```；其二是如果是local pod会直接引用对应仓库的源文件，在主工程对pods工程下业务模块的改动就是直接对其git仓库的改动，没有了频繁的```pod repo push```和```pod install```操作。
+
+# 依赖管理
+选择使用```CocoaPods```另外一个重要原因就是，可以通过它来管理模块间的依赖，之前项目各个功能之所以难以复用的重要原因之一就是**没有声明依赖**。这里的依赖不仅仅是A模块依赖B模块这样的事情，还可以是A模块运行需要的所有工程配置，比如A模块工程需要添加一个```GCC_PREPROCESSOR_DEFINITIONS```预处理宏才能正常编译。因此，个人认为模块依赖声明非常重要，即便没有像CocoaPods这样的管理工具，也应该有相关文档来说明每个内部模块或者SDK的依赖。
+
+```CocoaPods```的方便之处就在于你必须把你模块的依赖列出来，否则是无法通过```pod spec lint```过程的，并且所有的依赖项也都是必须是pods仓库
+。除此以外，依赖的集成也是自动化的，```CocoaPods```可以自动地添加工程配置和依赖组件。
+
+# 模块集成
+在完成上述两个步骤以后，模块化工程的构建工作基本就结束了，接下来我们探讨一下如何在工程中更好地使用这些模块。为此我们写了一个组件化的开源方案 [**TinyPart** [https://github.com/RyanLeeLY/TinyPart]](https://github.com/RyanLeeLY/TinyPart)。
+
+一般来说，模块初始化需要在APP启动或者UI初始化附近的时机来完成，有时候各个模块的启动顺序可能也是有讲究的，这些初始化逻辑我们往往会加入到AppDelegate这个类里。过一段时间我们会发现，AppDelegate这个类变得臃肿不堪，逻辑复杂，难以维护。在TinyPart中，Module的声明协议包含了```UIApplicationDelegate```，这就意味着每一个模块都可以实现有一套自己的```UIApplicationDelegate```协议，并且它们之间调用顺序是可以自定义的。
+
+    @interface TPLShareModule : NSObject <TPModuleProtocol>
+    @end
+    @implementation TPLShareModule
+    TP_MODULE_ASYNC
+    
+    TP_MODULE_PRIORITY(TPLSHARE_MODULE_PRIORITY)
+    
+    - (void)moduleDidLoad:(TPContext *)context {
+        [WXApi registerApp:APPID];
+    }
+    
+    - (BOOL)application:(UIApplication *)application
+                openURL:(NSURL *)url
+      sourceApplication:(NSString *)sourceApplication
+             annotation:(id)annotation {
+        return [WXApi handleOpenURL:url delegate:self];
+    }
+    
+    - (BOOL)application:(UIApplication *)app
+                openURL:(NSURL *)url
+                options:(NSDictionary<UIApplicationOpenURLOptionsKey,id> *)options {
+        return [WXApi handleOpenURL:url delegate:self];
+    }
+    @end
+
+上面的代码是一个微信社交分享模块的初始化内容，同时实现了微信分享所要求的```UIApplicationDelegate```中的方法。
+
+# 通信
+## 消息
+在面向对象中，**消息**是一个十分重要的概念，它是对象之前通信的重要方式。但是，在OC中如果想要向一个对象发消息，正常做法就是将改对象类的头文件import进来，这样我们就能够写出```[aInstance method]```这样的代码了。
+
+然而在模块化中，我们并不希望模块与模块之间相互引用各自的类文件，但是又想要实现通信，那怎么办呢？通过协议来完成。我们知道OC是一个动态语言，方法的调用过程其实是动态的，头文件中消息方法的声明只是为了通过编译前的静态检查。也就是说，我们只要写一个协议来告诉编译器有这么一个方法就可以了，至于实际上究竟有没有这个方法是在消息发过去以后就知道了。既然OC有这个特性，我们甚至可以直接通过类名和方法名向一个对象发送消息，这其实就是网上大部分组件化路由的实现机制。
+
+因此在[**TinyPart**](https://github.com/RyanLeeLY/TinyPart)中我们既提供了协议和路由两种模式来调用模块内的服务。
+
+    @protocol TestModuleService1 <TPServiceProtocol>
+    - (void)function1;
+    @end
+    
+    @interface TestModuleService1Imp : NSObject <TestModuleService1>
+    @end
+    
+    @implementation TestModuleService1Imp
+    TPSERVICE_AUTO_REGISTER(TestModuleService1) // Service will be registered in "+load" method
+    
+    - (void)function1 {
+        NSLog(@"%@", @"TestModuleService1 function1");
+    }
+    @end
+
+上面的代码中，我们定义了一个服务的协议。
+
+    #import "TestModuleService1.h"
+    
+    id<TestModuleService1> service1 = [[TPServiceManager sharedInstance] serviceWithName:@"TestModuleService1"];
+    
+    [service1 function1];
+
+这里我们只需要import上述协议的头文件，然后就可以向```TestModuleService1```发消息了。
+
+我们看到上述的跨模块调用方案中，只需要暴露一个协议文件就可以了，下面我们再看一下如何用路由的方式来做到完全不暴露任何头文件。
+
+    #import "TPRouter.h"
+    
+    @interface TestRouter : TPRouter
+    @end
+    
+    @implementation TestRouter
+    TPROUTER_METHOD_EXPORT(action1, {
+        NSLog(@"TestRouter action1 params=%@", params);
+        return nil;
+    });
+    
+    TPROUTER_METHOD_EXPORT(action2, {
+        NSLog(@"TestRouter action2 params=%@", params);
+        return nil;
+    });
+    @end
+
+在这里我们参考了ReactNative的方案，通过一个```TPROUTER_METHOD_EXPORT```宏来定义一个可供调用的路由服务，同时可以传一个```params```参数进了。然后我们再来调用这个路由。
+
+    [[TPMediator sharedInstance] performAction:@"action1" router:@"Test" params:@{}];
+
+## 通知
+除了上面提到的两种普通的模块通信方案，我们发现在项目中经常会有跨模块的```NSNotification```，对于这样的观察者模式使用```NSNotification```来实现是最便捷的方式了。尽管```NSNotification```可以做到模块间解耦，但是对于通知的管理过于松散会导致散落在各个模块的```NSNotification```逻辑变得十分复杂，因此我们为[**TinyPart**](https://github.com/RyanLeeLY/TinyPart)增加了一种有向通信的方案。
+
+所谓有向通信，则是在```NSNotification```基础上对通知的传播方向进行了限制，底层模块对上层模块的通知称为**广播Broadcast**，上层模块对底层模块或者同层模块的通知称为**上报Report**。这样做有两个好处：一方面更利于通知的维护，另一方面可以帮助我们划分模块层级，如果我们发现有一个模块需要向多个同级模块进行Report那么这个模块很有可能应该被划分到更底层的模块。
+
+用法同```NSNotification```类似，只不过创建通知的方法是一个链式调用，大概就是这样：
+
+    // 发送
+    TPNotificationCenter *center2 = [TestModule2 tp_notificationCenter];
+    
+    [center2 reportNotification:^(TPNotificationMaker *make) {
+        make.name(@"report_notification_from_TestModule2");
+    } targetModule:@"TestModule1"];
+        
+    [center2 broadcastNotification:^(TPNotificationMaker *make) {
+        make.name(@"broadcast_notification_from_TestModule2").userInfo(@{@"key":@"value"}).object(self);
+    }];
+
+    // 接收
+    TPNotificationCenter *center1 = [TestModule1 tp_notificationCenter];
+    [center1 addObserver:self selector:@selector(testNotification:) name:@"report_notification_from_TestModule2" object:nil];
+    
+# 参考
+[**BeeHive**](https://github.com/alibaba/BeeHive)
+
+[**ReactNative**](http://facebook.github.io/react-native/)
