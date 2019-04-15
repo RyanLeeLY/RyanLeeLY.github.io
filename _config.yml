@@ -34,7 +34,7 @@ comments: true
 # Note that about_footer should be true if you want
 # to see author information at the bottom of each post
 about_stub: >
-    Keep this sentence less than 13 words or it won't look good.
+    你好！我叫LiYao，是一名iOS客户端开发者，现居上海。
 
 about_footer: true
 
