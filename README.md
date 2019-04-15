@@ -1,4 +1,6 @@
-# accent
+[Yao's blog](https://ryanleely.github.io)
+
+<!--# accent
 
 #### [Demo & Documentation](http://ankitsultana.com/accent)
 
@@ -51,3 +53,4 @@ year-month-day-name-of-the-file.markdown
 ### License
 
 [MIT](https://github.com/bk2dcradle/accent/blob/gh-pages/LICENSE). Copyright &copy; [Ankit Sultana](http://twitter.com/AnkitSultana)
+-->
