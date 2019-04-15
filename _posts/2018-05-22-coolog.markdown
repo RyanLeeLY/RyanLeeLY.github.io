@@ -1,0 +1,164 @@
+---
+title: iOS一个灵活可扩展的开源Log库
+author: Yao Li
+author_site: http://blog.yaoli.site
+---
+
+> 目前大部分iOS的小型开发团队都不是很重视log，导致很多线上发生的或者用户反馈的bug难以排查。对于App来说一个好的日志系统可以帮助我们用最小的代价来排查一些疑难bug，我们唯一要做的就是在合适的位置打印日志，记录App的运行状况。这样做不仅仅可以让我们在debug时查看App运行日志，还可以允许App通过某些方式将日志文件回传供开发人员分析问题。
+
+## 关于NSLog
+
+苹果提供的```NSLog```是大多数开发者常用的日志工具，但是```NSLog```还是无法满足我们对于Log的其他需求，如日志分级、日志持久化等。另外我们知道```NSLog```其实并不是```printf```的封装而是ASL的高级封装，苹果在文档上也说明了```NSLog```的设计目的是```Logs an error message```，因此我们如果在开发中大量使用```NSLog```，App的性能会变得非常糟糕。关于NSLog的性能问题可以参看这篇sunnyxx的文章[【NSLog效率低下的原因及尝试lldb断点打印Log】](https://blog.sunnyxx.com/2014/04/22/objc_dig_nslog/)
+
+## 需求
+
+* 独立开关。比如我们希望在debug版本中打开控制台log和文件log，在release版本中只打开文件log的功能。
+* 可扩展性和灵活性。我们知道在iOS10以后苹果建议使用```os.log```来取代```NSLog```，我们希望有一个具有很强扩展性的log库，使我们可以很轻易地将log底层实现替换为```os.log```而不必改变原有的log代码。
+* 自定义格式。可以自定义log输出的标准格式，同时也不希望原有的log调用接口有大量改动。
+* 日志查看工具。我们知道```NSLog```在Mac提供了```Console.app```这样的调试工具，使得我们即使不在xcode的debug模式下也可以随时查看App的日志。甚至，我们希望使用windows PC也可以在非debug模式下查看log。
+* 分级与过滤。log应该被划分为不同等级，同时在debug和release下我们可以设置不同级别的过滤器，低级别的log可以被过滤掉。举个🌰：假如有info、default、warning、error四个等级log，我们可能会希望在debug下输出所有等级的log，而在release下只输出warning和error等级的log。
+
+## 轮子
+
+### 先上轮子[Coolog[Github]](https://github.com/RyanLeeLY/Coolog)
+
+Coolog设计之初就是为了解决上面所提到的这些需求。Coolog具有高度的可扩展性和灵活性，同时提供了一个浏览器的调试工具。目前，Coolog还有很多需要完善的地方，包括浏览器调试工具目前也只是一个demo，欢迎大家成为Coolog的Contributor。
+
+## 架构
+为了保证可扩展性和灵活性，Coolog包含了了生成器（COLLogger）、格式化协议与格式化器（COLFormatable和COLLogFormatter）、驱动器（COLLoggerDriver）、引擎（COLEngine）、管理者（COLLogManager），他们之间的关系可见下图：
+![Architecture](https://user-gold-cdn.xitu.io/2018/5/22/16387f7dfcdaafe8?w=700&h=525&f=jpeg&s=120233)
+
+下面我们来一一说明它们各自的作用。
+### 生成器 COLLogger
+顾名思义，生成器负责最终log的生成，```COLLogger```是一个协议。Coolog提供了三种生成器，分别是```COLNSLogger```、```COLConsoleLogger```、```COLFileLogger```，这三个类都实现了```COLLogger```协议中```- (void)log:(NSString *)logString;```这个方法。在该方法中我们最终定义了这个类型的log最后的生成方法，log引擎会通过驱动器调用到该方法输出log。
+除了这三种生成器，也可以自己实现```COLLogger```协议来自定义一个生成器。
+
+### 格式化协议 COLFormatable
+这个协议只有一个方法，这个方法定义了log的输出格式。
+```objective-c
+- (NSString *)completeLogWithType:(COLLogType)type
+                              tag:(NSString *)tag
+                          message:(NSString *)message
+                             date:(NSDate *)date;
+```
+
+### 格式化器 COLLogFormatter
+格式化器就是实现了```COLFormatable```格式化协议的类，默认我们提供了与上述三种生成器对应的三种格式化器```NSLogFormatter```、```ConsoleFormatter```、```FileFormatter```，他们分别对应原生NSLog、控制台与浏览器工具log和文件log。这个三个类我们使用了类族提供工厂方法完成初始化，在自定义格式化器时并不需要继承```COLLogFormatter```，是需要实现```COLFormatable```协议即可。
+
+### 驱动器 COLLoggerDriver
+驱动器是一个容器，生成器与格式化器将作为依赖注入到驱动器中，同时驱动器负责log的级别的配置，实现log分级过滤。log类型分为5中：```Error>Warning>Info>Default>Debug```，过滤的级别分为7级：```LevelOff>LevelError>LevelWarning>LevelInfo>LevelDefault>LevelDebug>LevelAll```，低级别的log可能会被过滤，比如如果当前过滤级别为```LevelInfo```，那么将只有```Error```、```Warning```、```Info ```这三种类型的log会被输出。最终驱动器将交由log引擎统一管理。
+
+#### 引擎 COLEngine
+引擎负责管理所有的驱动器，由它负责启动log，引擎可以随时移除或者加入单个log驱动器，实现不同log的独立开关。
+
+## 使用
+
+### 初始化
+
+```objective-c
+[[COLLogManager sharedInstance] setup];
+    
+[[COLLogManager sharedInstance] enableFileLog];  // 打开文件log
+[[COLLogManager sharedInstance] enableConsoleLog];  // 打开控制台log
+//    [[COLLogManager sharedInstance] enableNSLog];  // 一般控制台log和NSLog不同时打开
+    
+// Debug下打开所有级别log，Release下打开Info级别以上的log
+#ifdef DEBUG
+    [COLLogManager sharedInstance].level = COLLogLevelAll;
+#else
+    [COLLogManager sharedInstance].level = COLLogLevelInfo;
+#endif
+```
+
+### Log
+
+```objective-c
+CLogError(@"tag", @"%@", @"log content");
+CLogE(@"%@", @"log content");
+
+CLogWarning(@"tag", @"%@", @"log content");
+CLogW(@"%@", @"log content");
+	
+CLogInfo(@"tag", @"%@", @"log content");
+CLogI(@"%@", @"log content");
+	
+CLogDefault(@"tag", @"%@", @"log content");
+CLog(@"%@", @"log content");
+	
+CLogDebug(@"tag", @"%@", @"log content");
+CLogD(@"%@", @"log content");
+```
+
+### 浏览器调试
+首先打开浏览器调试功能。
+```objective-c
+[[COLLogManager sharedInstance] enableRemoteConsole];
+```
+将电脑和手机连到同一个wifi下，打开浏览器访问[(http://coolog.oss-cn-hangzhou.aliyuncs.com/index.html?host=ws://[YourPhoneIPAddr]:9001/coolog](http://coolog.oss-cn-hangzhou.aliyuncs.com/index.html?host=ws://[YourPhoneIPAddr]:9001/coolog)，注意地址后面的参数[YourPhoneIPAddr]替换为手机的IP地址。
+
+目前效果是下面这样。
+![BrowserTool](https://user-gold-cdn.xitu.io/2018/5/22/16387f7e00e2acea?w=1114&h=708&f=gif&s=2920997)
+
+### 加入自定义的log方法
+* 第一步：实现一个生成器
+
+```objective-c
+#import "COLLogger.h"
+@interface MyLogger : NSObject <COLLogger>
+
+@end
+```
+
+```objective-c
+#import "MyLogger.h"
+#import <os/log.h>
+
+@implementation MyLogger
+@synthesize formatterClass = _formatterClass;
+
++ (instancetype)logger {
+    return [[MyLogger alloc] init];
+}
+
+// This is your own log method. It will be called by log engine. 
+- (void)log:(NSString *)logString {
+	//For example, here below uses os_log as its implementation.
+    os_log(OS_LOG_DEFAULT, "%{public}s", [logString UTF8String]);
+}
+@end
+```
+
+* 第二步：实现一个格式化器
+
+```objective-c
+#import "COLLogFormatter.h"
+
+@interface MyLogFormatter : NSObject <COLFormatable>
+
+@end
+```
+
+```objective-c
+#import "MyLogFormatter.h"
+
+@implementation MyLogFormatter
+// The log's format depends on this method.
+- (NSString *)completeLogWithType:(COLLogType)type tag:(NSString *)tag message:(NSString *)message date:(NSDate *)date {
+    return [NSString stringWithFormat:@"tag=[%@], type=[%zd], message=[%@], date=[%@]", tag, type, message, date];
+}
+@end
+```
+
+* 第三步：实例化驱动器并加入到log引擎
+
+```objective-c
+COLLoggerDriver *myDriver = [[COLLoggerDriver alloc] initWithLogger:[MyLogger logger]
+                                                              formatter:[[MyLogFormatter alloc] init]
+                                                                  level:COLLogLevelInfo];
+[[COLLogManager sharedInstance].logEngine addDriver:myDriver];
+```
+
+## 后记
+Log是我们开发过程中容易忽略的一步，但它又是十分重要的一项工作，我们要学会如何在合适的位置记录合适log，这对于我们复现和排查问题真的有很大的帮助。
+
+目前Coolog还是很有很多不完善的地方，包括浏览器调试工具也是一个初级的demo状态，后续工作会放在log的性能优化和调试工具的搜索和过滤功能，包括调试工具的UI也会进一步优化。
