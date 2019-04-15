@@ -6,28 +6,23 @@ baseurl: "/"
 
 # This will show up at the top of index page
 site_heading: >
-    foo <span class="faded">'s blog</span>
+    Yao <span class="faded">'s blog</span>
 
-email: your@email.com
-author: yourname
+email: liyaoxjtu2013@gmail.com
+author: Yao Li
 # This description will show up in google search results
 # (for index page) etc.
 description: >
-    accent is, as Trump would put it, the best
+    iOS developer, tech blog, 
 
 # This will what will show against &copy; in the footer
-copyright: accent
+copyright: Yao Li
 # Toggle your short bio, which will displayed on your index page
 # Just toggle it and run jekyll again to see
 intro: false         # Tip: Remove the span from site_heading if intro is set to true
 # This will be displayed in your intro
 short_bio: >
-    Welcome! This is <span>accent</span>, a mobile friendly theme for Jekyll. The main feature of this
-    theme is that you can change the accent color. Refer the
-    <a class="underline different-highlight" href="http://ankitsultana.com/accent/documentation.html">
-        Documentation
-    </a>
-    to know how.
+    Welcome! I'm a iOS APP developer, living in Shanghai, China.
 
 permalink: /:title.html
 
@@ -43,9 +38,9 @@ about_stub: >
 
 about_footer: true
 
-twitter_username: AnkitSultana
-github_username: yourgithub
-facebook_id: yourusername
+twitter_username: liyaoryan
+github_username: RyanLeeLY
+facebook_id: liyao1021@163.com
 
 favicon: true
 favicon_location: "images/favicon.ico"
