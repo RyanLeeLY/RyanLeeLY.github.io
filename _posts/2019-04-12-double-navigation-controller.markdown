@@ -53,7 +53,7 @@ author_site: http://blog.yaoli.site
 
 这个方案在逻辑上就是错误的，因为C页面根本不应该关心它的上上一个页面样式。如下图，假设B页面有两条跳转路径A1和A2，此时C页面的样式就有2种可能，相信绝大多数App的设计都不会出现 **“1个页面，2种UI”** 的情况吧。
 
-![Example](https://user-gold-cdn.xitu.io/2019/4/12/16a10eddd3c98c08?w=1024&h=768&f=jpeg&s=49064)
+![Example](https://user-gold-cdn.xitu.io/2019/4/17/16a293368df3e205?w=1024&h=768&f=jpeg&s=53869)
 
 **C页面导航栏跟UIAppearance配置一样？**
 
@@ -117,17 +117,8 @@ clone这个仓库，进到`Example`目录下执行`pod install`来运行一个de
     }
 }];
 ```
-## 其他开源作品
-**TinyPart — 模块化框架**
-[github](https://github.com/RyanLeeLY/TinyPart) |
-[掘金](https://juejin.im/post/5ad473dff265da2391489711)
 
-**FastKV — iOS的高性能、高实时性key-value持久化组件**
-[github](https://github.com/RyanLeeLY/FastKV) | 
-[掘金](https://juejin.im/post/5b7e9bbc51882542e32a9c4d)
-
-**Coolog — 可扩展的log框架** [github](https://github.com/RyanLeeLY/Coolog) | 
-[掘金](https://juejin.im/post/5b04168f6fb9a07a9e4d90b8)
+项目地址：**[DoubleNavigationController](https://github.com/RyanLeeLY/DoubleNavigationController)**
 
 ## 参考
 
@@ -136,3 +127,4 @@ clone这个仓库，进到`Example`目录下执行`pod install`来运行一个de
 [UIKit UIAppearance - APPLE](https://developer.apple.com/documentation/uikit/uiappearance)
 
 [iOS UIAppearance 探秘 — HyanCat's](https://hyancat.com/posts/2016/04/13/UIAppearance/)
+
