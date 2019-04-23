@@ -12,10 +12,10 @@ It is in your hands to make a difference.
 <br>
 **——Nelson Rolihlahla Mandela 纳尔逊·罗利赫拉赫拉·曼德拉**
 
-***
-了解Objective-C runtime的人应该都或多或少的知道method swizzling这个黑魔法。这个技术可以让我们在运行时改变selector的实现，从而可以达到一些“不可告人”的目的。这可能是runtime机制中最有争议的一项技术。这里就不过多对这个技术作什么评价，本文只是探讨如何在Swift中更好地使用这个技术。
-***
+**了解Objective-C runtime的人应该都或多或少的知道method swizzling这个黑魔法。这个技术可以让我们在运行时改变selector的实现，从而可以达到一些“不可告人”的目的。这可能是runtime机制中最有争议的一项技术。这里就不过多对这个技术作什么评价，本文只是探讨如何在Swift中更好地使用这个技术。**
+
 首先来看一段[**Mattt Thompson**](http://nshipster.com)大神（AFNetworking作者之一）的实现
+
 ```objective-c
 #import <objc/runtime.h>
 
@@ -63,8 +63,7 @@ Mattt Thompson大神在他的一篇文章[**Method Swizzling**](http://nshipster
 - swizzling 应该只在 dispatch_once 中完成
 - swizzling应该只在+load中完成。
 
-***
-##**dispatch_once**
+## dispatch_once
 在Swift3.x的Dispatch API中我们发现`dispatch_once`已经没有了，但是我们知道`static let`这样声明的变量其实已经用到`dispatch_once`了，比如
 ```swift
 class SingletonClass  {
@@ -92,8 +91,8 @@ class MyClass  {
 }
 ```
 这样我们就可以这样调用了`MyClass.doOneTimeFunction()`，至此我们找到了解决`dispatch_once`的方案了。有关`dispatch_once`在Swift中的替代方案可以[参阅这里](https://stackoverflow.com/questions/37801407/whither-dispatch-once-in-swift-3)
-***
-##**+load**
+
+## +load
 在OC中我们都知道`+load()`方法会在类被装载时调用，而Swift中已经没有了该方法。好在我们在Swift中还有方法`+initialize()`方法可以用，这个方法会在第一次调用这个类的类方法或者实例方法时调用。
 但是到了Swift3.1，有的朋友可能发现`+initialize()`这个方法已经不被苹果所推荐使用并且在未来会被弃用。更新到Xcode9的朋友可能发现了`+initialize()`这个方法果然被禁用了。。。
 > Method 'initialize()' defines Objective-C class method 'initialize', which is not permitted by Swift
@@ -101,7 +100,8 @@ class MyClass  {
 有一种通常的解法是放到`AppDelegate`的`applicationDidFinishLaunching`中，我们只需添加一个我们希望初始化的静态函数就可以了。但是这的方法不够灵活，而且存在一种情况，如果我们想build的一个`framework`，但是我们又不希望让使用者还要在`applicationDidFinishLaunching`中调用。
 <br>
 于是我又开始在网上寻找解决方案，最终[**JORDAN SMITH**的文章**Handling the Deprecation of initialize()**](http://jordansmith.io/handling-the-deprecation-of-initialize/)给出了一个解决方案.
-```
+
+```swift
 protocol SelfAware: class {
     static func awake()
 }
@@ -136,7 +136,8 @@ extension UIApplication {
 至此我们也还算优雅地解决了`+load`的问题。
 
 ***
-##最后
+
+## 最后
 看一下如何对`UIViewController`的`viewWillAppear`方法做method swizzling：
 ```swift
 import UIKit
@@ -201,10 +202,11 @@ viewWillAppear
 另外还发现一个问题，尽管有了`extension UIViewController: SelfAware`，在`harmlessFunction()`调用的时候，发现`UIViewController`并没有符合`SelfAware`，但是`UIViewController`的所有子类却都符合`SelfAware`。
 虽然这样没啥大问题，还是欢迎大家提出改进的方案。
 
-***
+
 ###参考文章
 >[Method Swizzling](http://nshipster.com/method-swizzling/) by Mattt Thompson
-[Handling the Deprecation of initialize()](http://jordansmith.io/handling-the-deprecation-of-initialize/) by JORDAN SMITH
+
+>[Handling the Deprecation of initialize()](http://jordansmith.io/handling-the-deprecation-of-initialize/) by JORDAN SMITH
 
 
 
