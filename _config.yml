@@ -52,7 +52,7 @@ tracking_id: UA-138251481-1 # GA Tracking ID
 
 # Social Stuff | open graph and twitter cards
 og_image: "images/accent.png" # This will show in facebook thumbnails
-twitter_image: "http://ankitsultana.com/images/accent.png?1234" # This will show in twitter cards
+twitter_image: "https://avatars0.githubusercontent.com/u/9635597?s=460&v=4" # This will show in twitter cards
 
 ####################################
 ####################################
