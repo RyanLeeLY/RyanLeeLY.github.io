@@ -93,7 +93,7 @@ clone这个仓库，进到`Example`目录下执行`pod install`来运行一个de
 
 通过在ViewController中实现`dbn_configNavigationController`这个方法来定制导航栏样式。
 
-```objective-c
+```
 - (void)dbn_configNavigationController:(UINavigationController *)navigationController {
     [navigationController setNavigationBarHidden:NO animated:NO];
     navigationController.navigationBar.barTintColor = [UIColor whiteColor];
