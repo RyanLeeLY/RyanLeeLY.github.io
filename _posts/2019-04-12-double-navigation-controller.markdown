@@ -17,7 +17,7 @@ author_site: http://blog.yaoli.site
 
 > A navigation controller is a container view controller that manages one or more child view controllers in a navigation interface. 
 
-![UINavigationController](https://user-gold-cdn.xitu.io/2019/4/12/16a10df7f496ed30?w=1337&h=721&f=png&s=139624)
+![UINavigationController](https://docs-assets.developer.apple.com/published/83ef757907/navigation_interface_2x_8f059f7f-2e2f-4c86-8468-7402b7b3cfe0.png)
 
 也就是说`UINavigationController `是作为`UIViewController`的管理者，因此它的NavigationBar不应该从属于任何一个ViewController。但是大部分UI设计者都没有明白苹果设计的用意，因此在业务中经常出现一个场景：在逻辑上应该从属于**同一个NavigationController**的**多个ViewController**却拥有**不同的NavigationBar样式**。
 
@@ -25,7 +25,7 @@ author_site: http://blog.yaoli.site
 
 **DoubleNavigationController**解决的便是这个问题，让开发者自由地修改NavigationBar样式，并且不用担心在退回到栈下ViewController后NavigationBar的样式也被修改。简单来说就是，我们修改NavigationBar不再会影响栈内现有的页面样式，而只影响之后Push的新页面。
 
-![Example](https://user-gold-cdn.xitu.io/2019/4/12/16a10ec61b0096e5?w=1024&h=768&f=jpeg&s=78671)
+![Example](https://github.com/RyanLeeLY/DoubleNavigationController/blob/master/Resource/architecture.jpeg)
 
 * 为什么不设计成既不影响栈内现有的页面样式，也不影响新页面？
 
@@ -34,7 +34,7 @@ author_site: http://blog.yaoli.site
 ### “先到先得”
 先出现的页面样式不应该受到后出现的页面影响。用户在使用过程中先看到了页面A的样式，接着从A页面跳转到B页面，B页面的导航栏样式与A页面不同，这时用户再返回A页面，从正常逻辑上来说，用户希望看到的A页面导航栏应该还是之前见过的样式，不应该受到B的影响而改变。
 
-![Example](https://user-gold-cdn.xitu.io/2019/4/12/16a10ed4de27702b?w=1024&h=768&f=jpeg&s=47868)
+![Example](https://github.com/RyanLeeLY/DoubleNavigationController/blob/master/Resource/001.jpeg)
 
 ### “谁用谁修改”
 继续上面一个场景，用户从页面A到页面B，再从页面B跳转到页面C，在上一个场景下我们知道，页面B修改了导航栏样式，使其与页面A不同，当我们跳转到页面C时，此时存在如下两种可能：
@@ -45,7 +45,7 @@ author_site: http://blog.yaoli.site
 
 在第1种情况下我们很容易确定，C页面的导航栏样式就应该是C页面自己修改的样式。那么在第2种情况下，C页面导航栏应该长什么样？
 
-![Example](https://user-gold-cdn.xitu.io/2019/4/12/16a10eddd3c98c08?w=1024&h=768&f=jpeg&s=49064)
+![Example](https://github.com/RyanLeeLY/DoubleNavigationController/blob/master/Resource/002.jpeg)
 
 再考虑以下3种方案：**跟A页面一样？跟UIAppearance配置一样？跟B页面一样？**
 
@@ -53,7 +53,7 @@ author_site: http://blog.yaoli.site
 
 这个方案在逻辑上就是错误的，因为C页面根本不应该关心它的上上一个页面样式。如下图，假设B页面有两条跳转路径A1和A2，此时C页面的样式就有2种可能，相信绝大多数App的设计都不会出现 **“1个页面，2种UI”** 的情况吧。
 
-![Example](https://user-gold-cdn.xitu.io/2019/4/17/16a293368df3e205?w=1024&h=768&f=jpeg&s=53869)
+![Example](https://github.com/RyanLeeLY/DoubleNavigationController/blob/master/Resource/003.jpeg)
 
 **C页面导航栏跟UIAppearance配置一样？**
 
@@ -81,13 +81,13 @@ author_site: http://blog.yaoli.site
 
 细节3：由于`UIAppearance`的原理是在UIView被添加到视图树后才会去改变对象的外观，因此在使用FakeNavigationBar之前需要再一次和当前的navigationBar进行一次UIAppearance属性的复制。参考：[iOS UIAppearance 探秘 — HyanCat's](https://hyancat.com/posts/2016/04/13/UIAppearance/)
 
-![Example](https://user-gold-cdn.xitu.io/2019/4/12/16a10ef6fb06ed8f?w=1146&h=1072&f=png&s=475856)
+![Example](https://github.com/RyanLeeLY/DoubleNavigationController/blob/master/Resource/hf5r9.png)
 
 ## 例子
 
 clone这个仓库，进到`Example`目录下执行`pod install`来运行一个demo。
 
-![Example](https://user-gold-cdn.xitu.io/2019/4/12/16a10efc79febe1c?w=308&h=660&f=gif&s=1238815)
+![Example](https://github.com/RyanLeeLY/DoubleNavigationController/blob/master/Resource/example_high.gif)
 
 ## 用法
 
